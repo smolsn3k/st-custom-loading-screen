@@ -1,0 +1,11 @@
+{
+    "display_name": "Custom Loading Screen",
+    "loading_order": 1,
+    "requires": [],
+    "optional": [],
+    "js": "index.js",
+    "css": "style.css",
+    "author": "you",
+    "version": "1.0.0",
+    "homePage": ""
+}
