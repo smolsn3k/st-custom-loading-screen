@@ -17,14 +17,19 @@ Restyles SillyTavern's startup loader: your own picture (PNG, JPG, WebP, SVG or 
 
 ## Install
 
-1. Put the `custom-loading-screen` folder here:
-   - `SillyTavern/data/<your-user>/extensions/custom-loading-screen/` (recommended), or
-   - `SillyTavern/public/scripts/extensions/third-party/custom-loading-screen/`
-2. The folder must contain `manifest.json`, `index.js` and `style.css` directly (not in a subfolder).
+1. In SillyTavern open **Extensions** and press **Install extension**.
+2. Paste the repository link and confirm:
+
+   ```
+   https://github.com/smolsn3k/st-custom-loading-screen
+   ```
+
 3. Hard-refresh the page (or clear the site cache in your mobile browser).
 4. Open **Extensions** and find **Custom Loading Screen**.
 
-You can also upload the folder to a GitHub repository and install it with **Extensions → Install extension** using the repository link.
+To update later, use the update button next to the extension in the Extensions list.
+
+Manual install (optional): copy the files into `SillyTavern/data/<your-user>/extensions/custom-loading-screen/`, so that `manifest.json`, `index.js` and `style.css` are directly inside that folder.
 
 ## Settings
 
@@ -74,14 +79,19 @@ You can also upload the folder to a GitHub repository and install it with **Exte
 
 ## Установка
 
-1. Положите папку `custom-loading-screen` сюда:
-   - `SillyTavern/data/<ваш-пользователь>/extensions/custom-loading-screen/` (рекомендуется), или
-   - `SillyTavern/public/scripts/extensions/third-party/custom-loading-screen/`
-2. Внутри папки должны лежать `manifest.json`, `index.js` и `style.css` (не во вложенной папке).
+1. В SillyTavern откройте **Расширения** и нажмите **Install extension**.
+2. Вставьте ссылку на репозиторий и подтвердите:
+
+   ```
+   https://github.com/smolsn3k/st-custom-loading-screen
+   ```
+
 3. Обновите страницу с очисткой кэша (или очистите кэш сайта в браузере на телефоне).
 4. Откройте **Расширения** и найдите **Свой экран загрузки**.
 
-Можно также загрузить папку в репозиторий на GitHub и установить через **Extensions → Install extension** по ссылке на репозиторий.
+Для обновления позже используйте кнопку обновления рядом с расширением в списке.
+
+Ручная установка (необязательно): скопируйте файлы в `SillyTavern/data/<ваш-пользователь>/extensions/custom-loading-screen/`, чтобы `manifest.json`, `index.js` и `style.css` лежали прямо в этой папке.
 
 ## Настройки
 
