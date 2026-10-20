@@ -1,22 +1,24 @@
-// Custom Loading Screen for SillyTavern
-// Cosmetic only: this extension never reads, sends or touches chats, characters or any other data.
+// Custom Loading Screen for SillyTavern (v2)
+// Restyles SillyTavern's own splash loader in place (logo, progress bar, text).
+// Cosmetic only: never reads, sends or touches chats, characters or any other data.
+// Adds no waiting time: the native loader closes exactly when SillyTavern is ready.
 
 import { eventSource, event_types, saveSettingsDebounced, getRequestHeaders } from '../../../../script.js';
 import { extension_settings } from '../../../extensions.js';
 
 const MODULE = 'custom_loading_screen';
 const MAX_INLINE_BYTES = 1.5 * 1024 * 1024;
+const NATIVE_LOGO = '/img/logo.png';
 
 const DEFAULTS = {
     enabled: true,
     language: 'auto', // auto | en | ru
-    image: '',        // '' = built-in icon, otherwise URL / path / data URL
-    size: 140,
+    image: '',        // '' = SillyTavern's own logo
+    size: 150,
     shape: 'original', // original | circle | rounded
     funny: true,
     showPercent: true,
     accent: '#8b7bff',
-    minTime: 1.5,
 };
 
 /* ------------------------------------------------------------------ */
@@ -43,15 +45,15 @@ const I18N = {
         funnyHint: 'Just jokes for fun. Nothing is read, sent or shared.',
         percent: 'Show percentage',
         accent: 'Accent color',
-        minTime: 'Minimum display time',
         preview: 'Preview',
         sec: 's',
         badFile: 'Please choose an image file.',
         badUrl: 'That link does not look like an image address.',
+        previewNA: 'Preview is not available in this SillyTavern version. Reload the page to see the loading screen.',
         uploadFail: 'Upload failed and the file is too big to keep inline. Try a smaller image or paste a link.',
         stages: [
-            [0, 'Waking things up…'],
-            [25, 'Loading extensions…'],
+            [0, 'Starting up…'],
+            [35, 'Loading extensions…'],
             [55, 'Fetching characters…'],
             [80, 'Setting the stage…'],
             [95, 'Almost there…'],
@@ -93,15 +95,15 @@ const I18N = {
         funnyHint: 'Просто шутки. Ничего не читается, не отправляется и не передаётся.',
         percent: 'Показывать проценты',
         accent: 'Акцентный цвет',
-        minTime: 'Минимальное время показа',
         preview: 'Предпросмотр',
         sec: 'с',
         badFile: 'Выберите файл с картинкой.',
         badUrl: 'Эта ссылка не похожа на адрес картинки.',
+        previewNA: 'В этой версии SillyTavern предпросмотр недоступен. Перезагрузите страницу, чтобы увидеть экран загрузки.',
         uploadFail: 'Не удалось загрузить файл, а хранить его внутри настроек слишком тяжело. Возьмите картинку полегче или вставьте ссылку.',
         stages: [
-            [0, 'Просыпаемся…'],
-            [25, 'Загружаем расширения…'],
+            [0, 'Запускаемся…'],
+            [35, 'Загружаем расширения…'],
             [55, 'Подтягиваем персонажей…'],
             [80, 'Готовим сцену…'],
             [95, 'Почти готово…'],
@@ -149,6 +151,10 @@ function getLang() {
     return guess.startsWith('ru') ? 'ru' : 'en';
 }
 
+function accentOf(s) {
+    return isHex(s.accent) ? s.accent : DEFAULTS.accent;
+}
+
 function safeUrl(u) {
     u = String(u || '').trim();
     if (!u) return '';
@@ -163,6 +169,12 @@ function shuffle(arr) {
         [a[i], a[j]] = [a[j], a[i]];
     }
     return a;
+}
+
+function mixHex(a, b, t) {
+    const pa = [1, 3, 5].map((i) => parseInt(a.slice(i, i + 2), 16));
+    const pb = [1, 3, 5].map((i) => parseInt(b.slice(i, i + 2), 16));
+    return '#' + pa.map((v, i) => Math.round(v * t + pb[i] * (1 - t)).toString(16).padStart(2, '0')).join('');
 }
 
 // Second gradient color: the accent with its hue rotated a bit.
@@ -189,115 +201,73 @@ function shiftHue(hex, deg) {
     return `hsl(${H}, ${S}%, ${L}%)`;
 }
 
-function accentOf(s) {
-    return isHex(s.accent) ? s.accent : DEFAULTS.accent;
-}
-
-// Built-in icon: a chat bubble on a gradient tile (used when no custom picture is set).
-function defaultLogo(accent) {
-    const c2 = shiftHue(accent, 45);
-    const svg =
-        `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">` +
-        `<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">` +
-        `<stop offset="0" stop-color="${accent}"/><stop offset="1" stop-color="${c2}"/>` +
-        `</linearGradient></defs>` +
-        `<rect x="8" y="8" width="104" height="104" rx="30" fill="url(#g)"/>` +
-        `<path d="M36 40a10 10 0 0 1 10-10h28a10 10 0 0 1 10 10v22a10 10 0 0 1-10 10H60L46 86V72a10 10 0 0 1-10-10z" fill="#fff" fill-opacity=".96"/>` +
-        `<circle cx="49" cy="51" r="3.6" fill="url(#g)"/><circle cx="60" cy="51" r="3.6" fill="url(#g)"/><circle cx="71" cy="51" r="3.6" fill="url(#g)"/>` +
-        `</svg>`;
-    return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+function notify(kind, msg) {
+    try { window.toastr?.[kind]?.(msg); } catch { /* ignore */ }
 }
 
 /* ------------------------------------------------------------------ */
-/* Loading overlay                                                     */
+/* Restyling the native splash loader                                  */
 /* ------------------------------------------------------------------ */
 
-const OVERLAY_MARKUP = `
-<div class="cls-bg"><i></i><i></i></div>
-<div class="cls-stage">
-    <div class="cls-logo-wrap"><img class="cls-logo" alt=""></div>
-    <div class="cls-title">SillyTavern</div>
-    <div class="cls-bar"><div class="cls-fill"></div></div>
-    <div class="cls-pct">0%</div>
-    <div class="cls-text"></div>
-</div>`;
+// The native loader is a modal <dialog> (top layer), so it cannot be covered
+// from outside. Instead we restyle its own elements. The dialog backdrop is
+// painted through an injected rule because ::backdrop cannot be styled inline.
+function injectBackdropStyle(accent) {
+    let st = document.getElementById('cls-dyn-style');
+    if (!st) {
+        st = document.createElement('style');
+        st.id = 'cls-dyn-style';
+        document.head.appendChild(st);
+    }
+    const tint = mixHex(accent, '#0b0914', 0.26);
+    st.textContent =
+        `dialog.cls-host::backdrop{background:radial-gradient(120% 90% at 50% 0%,${tint} 0%,#0b0914 62%)!important;` +
+        `backdrop-filter:none!important;-webkit-backdrop-filter:none!important;}`;
+}
 
-let active = null;
-
-function buildOverlay(s) {
+/**
+ * Restyle a splash loader element (#loader.splash-screen).
+ * @returns {{finish: () => void}}
+ */
+function decorate(el, { preview = false } = {}) {
+    const s = getSettings();
+    const T = I18N[getLang()];
     const accent = accentOf(s);
-    const custom = safeUrl(s.image);
-    const el = document.createElement('div');
-    el.id = 'cls-overlay';
-    el.setAttribute('role', 'status');
-    el.setAttribute('aria-live', 'polite');
-    el.dataset.custom = custom ? '1' : '0';
-    el.dataset.shape = custom && (s.shape === 'circle' || s.shape === 'rounded') ? s.shape : 'original';
+
+    el.classList.add('cls-splash');
     el.style.setProperty('--cls-accent', accent);
     el.style.setProperty('--cls-accent-2', shiftHue(accent, 45));
     el.style.setProperty('--cls-size', clamp(Number(s.size) || DEFAULTS.size, 64, 320) + 'px');
-    el.innerHTML = OVERLAY_MARKUP;
-    if (!s.showPercent) el.classList.add('cls-nopct');
+    el.closest('dialog')?.classList.add('cls-host');
+    injectBackdropStyle(accent);
 
-    const img = el.querySelector('.cls-logo');
-    img.onerror = () => {
-        if (img.dataset.fallback === '1') return;
-        img.dataset.fallback = '1';
-        el.dataset.custom = '0';
-        el.dataset.shape = 'original';
-        img.src = defaultLogo(accent);
-    };
-    img.src = custom || defaultLogo(accent);
-    return el;
-}
+    // picture
+    const logo = el.querySelector('.splash-logo');
+    const custom = safeUrl(s.image);
+    el.dataset.custom = custom ? '1' : '0';
+    el.dataset.shape = custom && (s.shape === 'circle' || s.shape === 'rounded') ? s.shape : 'original';
+    if (logo && custom) {
+        logo.addEventListener('error', () => {
+            el.dataset.custom = '0';
+            el.dataset.shape = 'original';
+            logo.src = NATIVE_LOGO;
+        }, { once: true });
+        logo.src = custom;
+    }
 
-function closeOverlay(run) {
-    if (run.closed) return;
-    run.closed = true;
-    cancelAnimationFrame(run.raf);
-    run.timers.forEach((t) => { clearInterval(t); clearTimeout(t); });
-    try { run.cleanupWatch?.(); } catch { /* ignore */ }
-    if (active === run) active = null;
-    setTimeout(() => {
-        run.el.classList.add('cls-hide');
-        setTimeout(() => run.el.remove(), 800);
-    }, 250);
-}
+    // progress block, placed right before the status line
+    const msg = el.querySelector('.splash-message');
+    const block = document.createElement('div');
+    block.className = 'cls-progress';
+    block.innerHTML = '<div class="cls-bar"><div class="cls-fill"></div></div><div class="cls-pct">0%</div>';
+    if (msg) msg.before(block); else el.appendChild(block);
+    const fill = block.querySelector('.cls-fill');
+    const pctEl = block.querySelector('.cls-pct');
+    if (!s.showPercent) pctEl.hidden = true;
 
-function stopOverlay() {
-    if (!active) return;
-    const run = active;
-    closeOverlay(run);
-    run.el.remove();
-}
-
-function watchReady(run) {
-    const ready = () => { if (!run.closed) run.finish(); };
-    if (event_types && event_types.APP_READY) eventSource.on(event_types.APP_READY, ready);
-    const poll = setInterval(() => {
-        const pre = document.getElementById('preloader');
-        if (!pre || getComputedStyle(pre).display === 'none') ready();
-    }, 250);
-    const hard = setTimeout(ready, 40000); // never get stuck
-    run.timers.push(poll, hard);
-    run.cleanupWatch = () => eventSource.removeListener(event_types.APP_READY, ready);
-}
-
-function startOverlay({ preview = false } = {}) {
-    stopOverlay();
-    const s = getSettings();
-    const T = I18N[getLang()];
-    const el = buildOverlay(s);
-    document.body.appendChild(el);
-
-    const fill = el.querySelector('.cls-fill');
-    const pctEl = el.querySelector('.cls-pct');
-    const textEl = el.querySelector('.cls-text');
-
-    const t0 = performance.now();
-    const minMs = preview ? 4500 : clamp(Number(s.minTime) || 0, 0, 6) * 1000;
-    const run = { el, raf: 0, timers: [], finishing: false, closed: false, progress: 0 };
-    active = run;
+    const textEl = msg || block.appendChild(document.createElement('div'));
+    textEl.removeAttribute('data-i18n'); // keep ST's translator from overwriting our text
+    textEl.classList.add('cls-text');
 
     const setText = (txt, instant) => {
         if (textEl.textContent === txt) return;
@@ -312,62 +282,123 @@ function startOverlay({ preview = false } = {}) {
     const phrases = s.funny ? shuffle(T.phrases) : null;
     let pi = 0;
     let stageIdx = -1;
-    if (phrases) {
-        setText(phrases[0], true);
-        run.timers.push(setInterval(() => {
-            pi = (pi + 1) % phrases.length;
-            setText(phrases[pi]);
-        }, 2600));
-    } else {
-        setText(T.stages[0][1], true);
-    }
+    const timers = [];
+    let stopped = false;
 
-    run.finish = () => {
-        if (run.finishing || run.closed) return;
-        const now = performance.now();
-        run.finishing = true;
-        run.fFrom = run.progress;
-        run.fStart = now;
-        run.fEnd = Math.max(now + 450, t0 + minMs);
-    };
+    // We are loaded in the middle of startup, so a normal run starts partway.
+    const base = preview ? 0 : 35;
+    let p = base;
 
-    const ease = (k) => 1 - Math.pow(1 - k, 3);
-    const tick = (now) => {
-        if (run.closed) return;
-        let p;
-        if (!run.finishing) {
-            // Estimated progress: ST does not expose a real percentage, so we ease toward ~92%.
-            p = 92 * (1 - Math.exp(-(now - t0) / 2600));
-        } else {
-            const k = clamp((now - run.fStart) / (run.fEnd - run.fStart), 0, 1);
-            p = run.fFrom + (100 - run.fFrom) * ease(k);
-        }
-        p = Math.max(p, run.progress);
-        run.progress = p;
+    const render = () => {
         fill.style.width = p.toFixed(1) + '%';
         pctEl.textContent = Math.round(p) + '%';
-
         if (!phrases) {
             let idx = 0;
             T.stages.forEach(([threshold], i) => { if (p >= threshold) idx = i; });
-            if (idx !== stageIdx) {
-                stageIdx = idx;
-                setText(T.stages[idx][1]);
-            }
+            if (idx !== stageIdx) { stageIdx = idx; setText(T.stages[idx][1], stageIdx === 0); }
         }
-
-        if (run.finishing && p >= 100) { closeOverlay(run); return; }
-        run.raf = requestAnimationFrame(tick);
     };
-    run.raf = requestAnimationFrame(tick);
 
-    if (preview) {
-        run.timers.push(setTimeout(run.finish, 3500));
-        el.addEventListener('click', stopOverlay);
-    } else {
-        watchReady(run);
+    const stop = () => {
+        if (stopped) return;
+        stopped = true;
+        timers.forEach((t) => { clearInterval(t); clearTimeout(t); });
+        for (const ev of [event_types?.APP_INITIALIZED, event_types?.APP_READY]) {
+            if (ev) { try { eventSource.removeListener(ev, finish); } catch { /* ignore */ } }
+        }
+    };
+
+    function finish() {
+        if (stopped) return;
+        p = 100;
+        render();
+        stop();
     }
-    return run;
+
+    if (phrases) {
+        setText(phrases[0], true);
+        timers.push(setInterval(() => {
+            pi = (pi + 1) % phrases.length;
+            setText(phrases[pi]);
+        }, 2600));
+    }
+    render();
+
+    // Estimated progress: SillyTavern has no real percentage, so ease toward ~92%.
+    const t0 = Date.now();
+    const tau = preview ? 1400 : 2200;
+    timers.push(setInterval(() => {
+        if (!el.isConnected) { stop(); return; }
+        const target = base + (92 - base) * (1 - Math.exp(-(Date.now() - t0) / tau));
+        if (target > p) { p = target; render(); }
+    }, 120));
+
+    if (!preview) {
+        // Finish exactly when SillyTavern does. We never delay the native loader.
+        if (event_types?.APP_INITIALIZED) eventSource.on(event_types.APP_INITIALIZED, finish);
+        if (event_types?.APP_READY) eventSource.on(event_types.APP_READY, finish);
+    }
+
+    return { finish };
+}
+
+function boot() {
+    if (!getSettings().enabled) return;
+    let tries = 0;
+    const attempt = () => {
+        const el = document.querySelector('#loader.splash-screen');
+        if (el) { decorate(el); return; }
+        if (++tries < 40) setTimeout(attempt, 50); // give up after ~2 s
+    };
+    attempt();
+}
+
+/* ------------------------------------------------------------------ */
+/* Preview (uses SillyTavern's own loader, when available)             */
+/* ------------------------------------------------------------------ */
+
+let previewing = false;
+
+async function previewSplash() {
+    if (previewing) return;
+    let loader;
+    try {
+        ({ loader } = await import('../../../action-loader.js'));
+    } catch { /* older SillyTavern */ }
+    if (!loader?.createOverlay || !loader?.show) {
+        notify('info', I18N[getLang()].previewNA);
+        return;
+    }
+
+    previewing = true;
+    try {
+        const overlay = loader.createOverlay();
+        overlay.classList.add('splash-screen');
+        const logo = document.createElement('img');
+        logo.src = NATIVE_LOGO;
+        logo.alt = '';
+        logo.className = 'splash-logo';
+        const msg = document.createElement('h2');
+        msg.className = 'splash-message';
+        overlay.prepend(logo);
+        overlay.appendChild(msg);
+
+        const handle = loader.show({
+            slug: 'cls-preview',
+            toastMode: loader.ToastMode.NONE,
+            overlayContent: overlay,
+        });
+        const ctl = decorate(overlay, { preview: true });
+
+        await new Promise((r) => setTimeout(r, 4200));
+        ctl.finish();
+        await new Promise((r) => setTimeout(r, 450));
+        await handle.hide();
+    } catch (err) {
+        console.warn('[Custom Loading Screen] preview failed', err);
+    } finally {
+        previewing = false;
+    }
 }
 
 /* ------------------------------------------------------------------ */
@@ -439,20 +470,11 @@ const SETTINGS_HTML = `
             <input id="cls_accent" type="color">
         </div>
 
-        <div class="cls-field">
-            <div class="cls-range-head"><label for="cls_min" data-i18n="minTime"></label><span id="cls_min_val"></span></div>
-            <input id="cls_min" type="range" min="0" max="6" step="0.5">
-        </div>
-
         <div id="cls_preview" class="menu_button menu_button_icon">
             <i class="fa-solid fa-play"></i><span data-i18n="preview"></span>
         </div>
     </div>
 </div>`;
-
-function notify(kind, msg) {
-    try { window.toastr?.[kind]?.(msg); } catch { /* ignore */ }
-}
 
 function readAsDataURL(file) {
     return new Promise((resolve, reject) => {
@@ -475,6 +497,10 @@ function mountSettings() {
     const $ = (id) => root.querySelector('#' + id);
     const save = () => saveSettingsDebounced();
 
+    const refreshValues = () => {
+        $('cls_size_val').textContent = getSettings().size + ' px';
+    };
+
     const applyI18n = () => {
         const T = I18N[getLang()];
         root.querySelectorAll('[data-i18n]').forEach((n) => { n.textContent = T[n.dataset.i18n]; });
@@ -482,24 +508,14 @@ function mountSettings() {
         refreshValues();
     };
 
-    const refreshValues = () => {
-        const s = getSettings();
-        const T = I18N[getLang()];
-        $('cls_size_val').textContent = s.size + ' px';
-        $('cls_min_val').textContent = Number(s.minTime).toFixed(1) + ' ' + T.sec;
-    };
-
     const refreshThumb = () => {
-        const s = getSettings();
         const thumb = $('cls_thumb');
-        const fallback = defaultLogo(accentOf(s));
-        thumb.onerror = () => { thumb.onerror = null; thumb.src = fallback; };
-        thumb.src = safeUrl(s.image) || fallback;
+        thumb.onerror = () => { thumb.onerror = null; thumb.src = NATIVE_LOGO; };
+        thumb.src = safeUrl(getSettings().image) || NATIVE_LOGO;
     };
 
     const setImage = (url) => {
-        const s = getSettings();
-        s.image = url;
+        getSettings().image = url;
         $('cls_url').value = url.startsWith('data:') ? '' : url;
         refreshThumb();
         save();
@@ -514,7 +530,6 @@ function mountSettings() {
     $('cls_funny').checked = !!s0.funny;
     $('cls_percent').checked = !!s0.showPercent;
     $('cls_accent').value = accentOf(s0);
-    $('cls_min').value = s0.minTime;
     $('cls_url').value = String(s0.image || '').startsWith('data:') ? '' : (s0.image || '');
     applyI18n();
     refreshThumb();
@@ -526,9 +541,8 @@ function mountSettings() {
     $('cls_shape').addEventListener('change', (e) => { getSettings().shape = e.target.value; save(); });
     $('cls_funny').addEventListener('change', (e) => { getSettings().funny = e.target.checked; save(); });
     $('cls_percent').addEventListener('change', (e) => { getSettings().showPercent = e.target.checked; save(); });
-    $('cls_accent').addEventListener('input', (e) => { getSettings().accent = e.target.value; refreshThumb(); save(); });
-    $('cls_min').addEventListener('input', (e) => { getSettings().minTime = Number(e.target.value); refreshValues(); save(); });
-    $('cls_preview').addEventListener('click', () => startOverlay({ preview: true }));
+    $('cls_accent').addEventListener('input', (e) => { getSettings().accent = e.target.value; save(); });
+    $('cls_preview').addEventListener('click', previewSplash);
     $('cls_reset').addEventListener('click', () => setImage(''));
     $('cls_upload').addEventListener('click', () => $('cls_file').click());
 
@@ -572,10 +586,7 @@ function mountSettings() {
 /* ------------------------------------------------------------------ */
 
 try {
-    if (getSettings().enabled && !window.__clsBooted) {
-        window.__clsBooted = true;
-        startOverlay();
-    }
+    boot();
 } catch (err) {
     console.error('[Custom Loading Screen]', err);
 }

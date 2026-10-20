@@ -1,125 +1,55 @@
-/* ---------- Loading overlay ---------- */
+/* ---------- Restyled splash loader (SillyTavern's own #loader) ---------- */
 
-#cls-overlay {
+#loader.cls-splash {
     --cls-accent: #8b7bff;
     --cls-accent-2: #d57bff;
-    --cls-size: 140px;
-    position: fixed;
-    inset: 0;
-    z-index: 2147483000;
-    box-sizing: border-box;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding:
-        max(24px, env(safe-area-inset-top))
-        max(20px, env(safe-area-inset-right))
-        max(24px, env(safe-area-inset-bottom))
-        max(20px, env(safe-area-inset-left));
-    overflow: hidden;
+    --cls-size: 150px;
+    gap: 1.5rem;
     color: #f3effc;
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    background: #0b0914;
-    background: radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--cls-accent) 26%, #0b0914) 0%, #0b0914 62%);
-    opacity: 1;
-    visibility: visible;
-    transition: opacity 0.7s ease, visibility 0.7s;
 }
 
-#cls-overlay.cls-hide {
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-}
-
-/* soft drifting color fields */
-#cls-overlay .cls-bg i {
-    position: absolute;
-    width: 70vmax;
-    height: 70vmax;
-    border-radius: 50%;
-    pointer-events: none;
-    will-change: transform;
-}
-
-#cls-overlay .cls-bg i:nth-child(1) {
-    left: -25vmax;
-    top: -30vmax;
-    background: radial-gradient(circle, var(--cls-accent) 0%, transparent 65%);
-    opacity: 0.3;
-    animation: cls-drift-a 18s ease-in-out infinite alternate;
-}
-
-#cls-overlay .cls-bg i:nth-child(2) {
-    right: -30vmax;
-    bottom: -35vmax;
-    background: radial-gradient(circle, var(--cls-accent-2) 0%, transparent 65%);
-    opacity: 0.22;
-    animation: cls-drift-b 22s ease-in-out infinite alternate;
-}
-
-#cls-overlay .cls-stage {
-    position: relative;
-    width: min(100%, 380px);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
+/* hide the gear, keep it in the DOM so ST's own fade-out logic still works */
+#loader.cls-splash #load-spinner {
+    display: none;
 }
 
 /* picture */
-#cls-overlay .cls-logo-wrap {
-    position: relative;
-    display: grid;
-    place-items: center;
-    width: min(var(--cls-size), 42vh);
-    height: min(var(--cls-size), 42vh);
-    margin-bottom: 28px;
-}
-
-#cls-overlay .cls-logo-wrap::before {
-    content: "";
-    position: absolute;
-    inset: -30%;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(139, 123, 255, 0.5) 0%, transparent 68%);
-    background: radial-gradient(circle, color-mix(in srgb, var(--cls-accent) 55%, transparent) 0%, transparent 68%);
-    animation: cls-breathe 3.2s ease-in-out infinite;
-}
-
-#cls-overlay .cls-logo {
-    position: relative;
-    width: 100%;
-    height: 100%;
+#loader.cls-splash .splash-logo {
+    width: min(var(--cls-size), 60vw);
+    height: auto;
+    max-height: 40vh;
     object-fit: contain;
-    filter: drop-shadow(0 8px 22px rgba(0, 0, 0, 0.45));
+    filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.45)) drop-shadow(0 0 22px rgba(139, 123, 255, 0.45));
+    filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.45)) drop-shadow(0 0 22px color-mix(in srgb, var(--cls-accent) 55%, transparent));
     animation: cls-float 5s ease-in-out infinite;
 }
 
-#cls-overlay[data-custom="1"][data-shape="circle"] .cls-logo {
+#loader.cls-splash[data-custom="1"][data-shape="circle"] .splash-logo,
+#loader.cls-splash[data-custom="1"][data-shape="rounded"] .splash-logo {
+    height: min(var(--cls-size), 60vw);
+    object-fit: cover;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.16), 0 12px 32px rgba(0, 0, 0, 0.5);
+    filter: none;
+}
+
+#loader.cls-splash[data-custom="1"][data-shape="circle"] .splash-logo {
     border-radius: 50%;
-    object-fit: cover;
-    filter: none;
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.16), 0 12px 36px rgba(0, 0, 0, 0.5);
 }
 
-#cls-overlay[data-custom="1"][data-shape="rounded"] .cls-logo {
+#loader.cls-splash[data-custom="1"][data-shape="rounded"] .splash-logo {
     border-radius: 22%;
-    object-fit: cover;
-    filter: none;
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.16), 0 12px 36px rgba(0, 0, 0, 0.5);
-}
-
-/* title */
-#cls-overlay .cls-title {
-    margin-bottom: 26px;
-    font: 600 27px/1.1 "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
-    letter-spacing: 0.01em;
-    text-shadow: 0 2px 18px rgba(0, 0, 0, 0.45);
 }
 
 /* progress */
-#cls-overlay .cls-bar {
+#loader.cls-splash .cls-progress {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.55rem;
+    width: min(78vw, 320px);
+}
+
+#loader.cls-splash .cls-bar {
     width: 100%;
     height: 8px;
     border-radius: 99px;
@@ -128,45 +58,51 @@
     box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
-#cls-overlay .cls-fill {
+#loader.cls-splash .cls-fill {
     position: relative;
     width: 0;
     height: 100%;
     overflow: hidden;
     border-radius: inherit;
     background: linear-gradient(90deg, var(--cls-accent), var(--cls-accent-2));
+    transition: width 0.2s linear;
 }
 
-#cls-overlay .cls-fill::after {
+#loader.cls-splash .cls-fill::after {
     content: "";
     position: absolute;
     inset: 0;
-    background: linear-gradient(100deg, transparent 0%, rgba(255, 255, 255, 0.55) 50%, transparent 100%);
+    background: linear-gradient(100deg, transparent 0%, rgba(255, 255, 255, 0.5) 50%, transparent 100%);
     transform: translateX(-100%);
     animation: cls-shimmer 1.6s ease-in-out infinite;
 }
 
-#cls-overlay .cls-pct {
-    margin-top: 12px;
-    font-size: 13px;
+#loader.cls-splash .cls-pct {
+    font-size: 0.8rem;
     font-variant-numeric: tabular-nums;
     opacity: 0.7;
 }
 
-#cls-overlay.cls-nopct .cls-pct {
+#loader.cls-splash .cls-pct[hidden] {
     display: none;
 }
 
-#cls-overlay .cls-text {
+/* status / funny phrase line */
+#loader.cls-splash .cls-text {
+    box-sizing: border-box;
     min-height: 2.8em;
-    margin-top: 10px;
-    font-size: 15px;
+    max-width: 22rem;
+    margin: 0;
+    padding: 0 1rem;
+    font-size: 1rem;
+    font-weight: 400;
     line-height: 1.4;
-    color: rgba(243, 239, 252, 0.82);
+    text-align: center;
+    color: rgba(243, 239, 252, 0.85);
     transition: opacity 0.22s ease, transform 0.22s ease;
 }
 
-#cls-overlay .cls-text.cls-swap {
+#loader.cls-splash .cls-text.cls-swap {
     opacity: 0;
     transform: translateY(4px);
 }
@@ -176,38 +112,19 @@
     50% { transform: translateY(-6px); }
 }
 
-@keyframes cls-breathe {
-    0%, 100% { opacity: 0.55; transform: scale(0.94); }
-    50% { opacity: 1; transform: scale(1.06); }
-}
-
 @keyframes cls-shimmer {
     to { transform: translateX(100%); }
 }
 
-@keyframes cls-drift-a {
-    to { transform: translate(12vmax, 10vmax) scale(1.1); }
-}
-
-@keyframes cls-drift-b {
-    to { transform: translate(-10vmax, -8vmax) scale(1.15); }
-}
-
-@media (max-width: 480px) {
-    #cls-overlay .cls-title { font-size: 24px; }
-}
-
 @media (max-height: 480px) {
-    #cls-overlay .cls-logo-wrap { margin-bottom: 14px; }
-    #cls-overlay .cls-title { margin-bottom: 14px; font-size: 22px; }
-    #cls-overlay .cls-text { min-height: 0; }
+    #loader.cls-splash { gap: 0.8rem; }
+    #loader.cls-splash .cls-text { min-height: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    #cls-overlay *,
-    #cls-overlay *::before,
-    #cls-overlay *::after {
-        animation: none !important;
+    #loader.cls-splash .splash-logo,
+    #loader.cls-splash .cls-fill::after {
+        animation: none;
     }
 }
 
